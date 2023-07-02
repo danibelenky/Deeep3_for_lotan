@@ -35,15 +35,15 @@ class Trainer(abc.ABC):
         model.to(self.device)
 
     def fit(
-        self,
-        dl_train: DataLoader,
-        dl_test: DataLoader,
-        num_epochs: int,
-        checkpoints: str = None,
-        early_stopping: int = None,
-        print_every: int = 1,
-        post_epoch_fn: Callable = None,
-        **kw,
+            self,
+            dl_train: DataLoader,
+            dl_test: DataLoader,
+            num_epochs: int,
+            checkpoints: str = None,
+            early_stopping: int = None,
+            print_every: int = 1,
+            post_epoch_fn: Callable = None,
+            **kw,
     ) -> FitResult:
         """
         Trains the model for multiple epochs with a given training set,
@@ -84,7 +84,7 @@ class Trainer(abc.ABC):
             verbose = False  # pass this to train/test_epoch.
             if epoch % print_every == 0 or epoch == num_epochs - 1:
                 verbose = True
-            self._print(f"--- EPOCH {epoch+1}/{num_epochs} ---", verbose)
+            self._print(f"--- EPOCH {epoch + 1}/{num_epochs} ---", verbose)
 
             # TODO:
             #  Train & evaluate for one epoch
@@ -93,15 +93,15 @@ class Trainer(abc.ABC):
             #  - Implement early stopping. This is a very useful and
             #    simple regularization technique that is highly recommended.
             # ====== YOUR CODE: ======
-            
+
             train_result = self.train_epoch(dl_train, **kw)
             train_loss += train_result.losses
             train_acc.append(train_result.accuracy)
-            
+
             test_result = self.test_epoch(dl_test, **kw)
             test_loss += test_result.losses
             test_acc.append(test_result.accuracy)
-            
+
             if best_acc is None or test_result.accuracy > best_acc:
                 epochs_without_improvement = 0
                 best_acc = test_result.accuracy
@@ -124,7 +124,7 @@ class Trainer(abc.ABC):
                 os.makedirs(dirname, exist_ok=True)
                 torch.save(saved_state, checkpoint_filename)
                 print(
-                    f"*** Saved checkpoint {checkpoint_filename} " f"at epoch {epoch+1}"
+                    f"*** Saved checkpoint {checkpoint_filename} " f"at epoch {epoch + 1}"
                 )
 
             if post_epoch_fn:
@@ -185,10 +185,10 @@ class Trainer(abc.ABC):
 
     @staticmethod
     def _foreach_batch(
-        dl: DataLoader,
-        forward_fn: Callable[[Any], BatchResult],
-        verbose=True,
-        max_batches=None,
+            dl: DataLoader,
+            forward_fn: Callable[[Any], BatchResult],
+            verbose=True,
+            max_batches=None,
     ) -> EpochResult:
         """
         Evaluates the given forward-function on batches from the given
@@ -240,18 +240,18 @@ class RNNTrainer(Trainer):
     def train_epoch(self, dl_train: DataLoader, **kw):
         # TODO: Implement modifications to the base method, if needed.
         # ====== YOUR CODE: ======
-        
-        self.hidden_state = None    
-            
+
+        self.hidden_state = None
+
         # ========================
         return super().train_epoch(dl_train, **kw)
 
     def test_epoch(self, dl_test: DataLoader, **kw):
         # TODO: Implement modifications to the base method, if needed.
         # ====== YOUR CODE: ======
-        
-        self.hidden_state = None   
-        
+
+        self.hidden_state = None
+
         # ========================
         return super().test_epoch(dl_test, **kw)
 
@@ -269,26 +269,26 @@ class RNNTrainer(Trainer):
         #  - Update params
         #  - Calculate number of correct char predictions
         # ====== YOUR CODE: ======
-        
+
         #  - Forward pass
         outputs, self.hidden_state = self.model(x, self.hidden_state)
-        
+
         self.hidden_state = self.hidden_state.detach()
-        
+
         #  - Calculate total loss over sequence
         self.optimizer.zero_grad()
-        
+
         loss = self.loss_fn(outputs.transpose(dim0=1, dim1=2), y)
-        
+
         #  - Backward pass: truncated back-propagation through time
         loss.backward()
-        
+
         #  - Update params
         self.optimizer.step()
-        
+
         #  - Calculate number of correct char predictions
         outputs = torch.argmax(outputs, dim=-1)
-        
+
         num_correct = torch.sum(outputs == y).float()
 
         # ========================
@@ -310,10 +310,10 @@ class RNNTrainer(Trainer):
             #  - Loss calculation
             #  - Calculate number of correct predictions
             # ====== YOUR CODE: ======
-            
+
             #  - Forward pass
             outputs, self.hidden_state = self.model(x, self.hidden_state)
-            
+
             #  - Loss calculation
             loss = self.loss_fn(outputs.transpose(dim0=1, dim1=2), y)
 
@@ -321,7 +321,7 @@ class RNNTrainer(Trainer):
             outputs = torch.argmax(outputs, dim=-1)
 
             num_correct = torch.sum(outputs == y).float()
-            
+
             # ========================
 
         return BatchResult(loss.item(), num_correct.item() / seq_len)
@@ -333,20 +333,20 @@ class VAETrainer(Trainer):
         x = x.to(self.device)  # Image batch (N,C,H,W)
         # TODO: Train a VAE on one batch.
         # ====== YOUR CODE: ======
-        
+
         #  - Forward pass
         xr, mu, log_sigma2 = self.model(x)
-        
+
         #  - Backward pass
         self.optimizer.zero_grad()
-        
+
         loss, data_loss, _ = self.loss_fn(x, xr, mu, log_sigma2)
-        
+
         loss.backward()
-        
+
         #  - Update params
         self.optimizer.step()
-        
+
         # ========================
 
         return BatchResult(loss.item(), 1 / data_loss.item())
@@ -358,84 +358,82 @@ class VAETrainer(Trainer):
         with torch.no_grad():
             # TODO: Evaluate a VAE on one batch.
             # ====== YOUR CODE: ======
-            
+
             xr, mu, log_sigma2 = self.model(x)
-            
+
             loss, data_loss, _ = self.loss_fn(x, xr, mu, log_sigma2)
-            
+
             # ========================
 
         return BatchResult(loss.item(), 1 / data_loss.item())
 
 
 class TransformerEncoderTrainer(Trainer):
-    
+
     def train_batch(self, batch) -> BatchResult:
-        
         input_ids = batch['input_ids'].to(self.device)
         attention_mask = batch['attention_mask'].float().to(self.device)
         label = batch['label'].float().to(self.device)
-        
+
         loss = None
         num_correct = None
         # TODO:
         #  fill out the training loop.
         # ====== YOUR CODE: ======
-        
+
         self.model.train()
-        
+
         # Forward pass
         y_pred, logits = self.model.predict(input_ids, attention_mask, return_logits=True)
-        
+
         loss = self.loss_fn(logits, label)
-        
+
         # Backward pass
         self.optimizer.zero_grad()
-        
+
         loss.backward()
-        
+
         self.optimizer.step()
-        
+
         # Calculate num_correct for accuracy
         num_correct = torch.sum(label == y_pred)
-        
+
         # ========================
-        
+
         return BatchResult(loss.item(), num_correct.item())
-        
+
     def test_batch(self, batch) -> BatchResult:
         with torch.no_grad():
             input_ids = batch['input_ids'].to(self.device)
             attention_mask = batch['attention_mask'].float().to(self.device)
             label = batch['label'].float().to(self.device)
-            
+
             loss = None
             num_correct = None
-            
+
             # TODO:
             #  fill out the testing loop.
             # ====== YOUR CODE: ======
-            
+
             self.model.eval()
-            
+
             y_pred, logits = self.model.predict(input_ids, attention_mask, return_logits=True)
-        
+
             loss = self.loss_fn(logits, label)
-            
+
             num_correct = torch.sum(label == y_pred)
-            
+
             # ========================
 
         return BatchResult(loss.item(), num_correct.item())
 
 
 class FineTuningTrainer(Trainer):
-    
+
     def train_batch(self, batch) -> BatchResult:
-        
         input_ids = batch["input_ids"].to(self.device)
         attention_masks = batch["attention_mask"].to(self.device)
-        labels= batch["label"].to(self.device)
+        labels = batch["label"].to(self.device)
         # TODO:
         #  fill out the training loop.
         # ====== YOUR CODE: ======
@@ -443,29 +441,28 @@ class FineTuningTrainer(Trainer):
         # Forward pass
         output = self.model(input_ids, attention_masks, labels=labels)
         logits = output.logits
-        
+
         # Backward pass
         self.optimizer.zero_grad()
         loss = output.loss
         loss.backward()
-        
+
         # Calculate number of correct char predictions
         y_pred = torch.argmax(logits, dim=-1)
         num_correct = torch.sum(y_pred == labels).float()
-        
+
         # Update params
         self.optimizer.step()
-        
+
         # ========================
-        
+
         return BatchResult(loss.item(), num_correct.item())
-        
+
     def test_batch(self, batch) -> BatchResult:
-        
         input_ids = batch["input_ids"].to(self.device)
         attention_masks = batch["attention_mask"].to(self.device)
-        labels= batch["label"].to(self.device)
-        
+        labels = batch["label"].to(self.device)
+
         with torch.no_grad():
             # TODO:
             #  fill out the training loop.
@@ -473,14 +470,14 @@ class FineTuningTrainer(Trainer):
             self.model.eval()
 
             output = self.model(input_ids, attention_masks, labels=labels)
-            
+
             logits = output.logits
-            
+
             loss = output.loss
-            
+
             y_pred = torch.argmax(logits, dim=-1)
-            
+
             num_correct = torch.sum(y_pred == labels)
-            
+
             # ========================
         return BatchResult(loss.item(), num_correct.item())
